@@ -20,6 +20,17 @@ class Page extends React.Component {
     this.fileInput = React.createRef()
     this.simple = React.createRef()
     this.imgBtn = React.createRef()
+    // controllable input
+    this.state = {
+      val1: '',
+      val2: 'hxwnb'
+    }
+  }
+
+  inputChangeHandler(e) {
+    this.setState({
+      val1: e.target.value
+    })
   }
 
   show(e) {
@@ -43,6 +54,12 @@ class Page extends React.Component {
           ref={this.imgBtn}
           onClick={() => this.showRef()}
         >my ref point to button element</ImageBtn>
+        <br/>
+        <input value={this.state.val1} onChange={(e) => this.inputChangeHandler(e)}/>
+        <span> you can change value in this input</span>
+        <br/>
+        <input value={this.state.val2}/>
+        <span> this input will not change whatever you input</span>
       </div>
     )
   }
