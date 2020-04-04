@@ -1,146 +1,127 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
+import React, { useState, useEffect } from 'react'
+import ReactDOM from 'react-dom'
+import { useFriendStatus } from './diy-hook'
 
-// function component
-function Square(props) {
+function Counter() {
+  /**
+   * Hook can only be used in function component
+   * and can only be placed here (not in if or for...)
+   */
+
+  // State Hook
+  // state is only created when first rendered
+  const [count, setCount] = useState(0)
+  // you can declare multiple states
+  const [obj, setObj] = useState({ name: 'hxw' })
+
   return (
-    <button className="square" onClick={props.onClick}>
-      {props.value}
-    </button>
+    <div>
+      <p>counter: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Inc</button>
+      <p>name: {obj.name}</p>
+      <button
+        onClick={() => setObj({ name: 'zzn' })}
+      >Rename</button>
+    </div>
   )
 }
 
-class Board extends React.Component {
+function Comp() {
+  const [count, setCount] = useState(0)
+  // Effect Hook
+  // componentDidMount & componentDidUpdate & componentWillUnmount
+  // after DOM update, this func will be called
+  // dont need to execute synchronously, dont block refresh screen
+  // so, if you want to measure, you should use useLayoutEffect
+  useEffect(() => {
+    document.title = count
+  })
 
-  renderSquare(i) {
-    return (
-      <Square
-        value={this.props.squares[i]}
-        onClick={() => this.props.onClick(i)}
-      />
-    );
-  }
-
-  render() {
-    return (
-      <div>
-        <div className="board-row">
-          {this.renderSquare(0)}
-          {this.renderSquare(1)}
-          {this.renderSquare(2)}
-        </div>
-        <div className="board-row">
-          {this.renderSquare(3)}
-          {this.renderSquare(4)}
-          {this.renderSquare(5)}
-        </div>
-        <div className="board-row">
-          {this.renderSquare(6)}
-          {this.renderSquare(7)}
-          {this.renderSquare(8)}
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div>
+      <p>counter: {count}</p>
+      <button onClick={() => setCount(Math.random() > 0.5 ? count + 1 : count)}>Inc</button>
+    </div>
+  )
 }
 
-class Game extends React.Component {
+class API {
+  friends = [true, false]
+  dep = []
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      history: [{
-        squares: Array(9).fill(null)
-      }],
-      next: 'X',
-      stepNumber: 0
-    };
+  subscribe(id, callback) {
+    this.dep[id] = callback
   }
 
-  calculateWinner = (squares) => {
-    const lines = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-    for (let i = 0; i < lines.length; i++) {
-      const [a, b, c] = lines[i];
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return squares[a];
-      }
+  update(id) {
+    this.friends[id] = !this.friends[id]
+    if(this.dep[id] !== undefined) {
+      this.dep[id](this.friends[id])
     }
-    return null;
   }
 
-  clickHandler = (i) => {
-    const his = this.state.history.slice(0, this.state.stepNumber + 1);
-    const tmp = his[his.length - 1].squares;
-    if (this.calculateWinner(tmp) || tmp[i]) {
-      return;
+  unsubscribe(id) {
+    this.dep[id] = undefined
+  }
+}
+const friendAPI = new API()
+
+function FriendStatus(props) {
+  const [isOnline, setIsOnline] = useState(null)
+  // clearable effect
+  useEffect(() => {
+    function statusChangeHandller(status) {
+      setIsOnline(status)
     }
-    tmp[i] = this.state.next;
-    this.setState({
-      history: this.state.history.concat([{
-        squares: tmp
-      }]),
-      next: this.state.next === 'X' ? 'O' : 'X',
-      stepNumber: this.state.history.length
-    });
-  }
-
-  jumpTo(step) {
-    this.setState({
-      stepNumber: step,
-      next: (step % 2) === 0 ? 'X' : 'O'
-    })
-  }
-
-  render() {
-    const curSquare = this.state.history[this.state.stepNumber].squares;
-    
-    const win = this.calculateWinner(curSquare);
-    let status;
-    if (win) {
-      status = `Winner: ${win}`
-    } else {
-      status = `Next player: ${this.state.next}`;
+    // subscribe change
+    friendAPI.subscribe(props.id, statusChangeHandller)
+    // return a func to clear effect
+    // React will execute every time rerender this component
+    return function clean() {
+      friendAPI.unsubscribe(props.id)
     }
+  })
+  return <div>{getStatus(isOnline)}</div>
+}
 
-    const moves = this.state.history.map((step, move) => {
-      const desc = move ? `Go to move #${move}` : 'Go to game start';
-      return (
-        <li key={move}>
-          <button onClick={() => this.jumpTo(move)}>{desc}</button>
-        </li>
-      )
-    })
-
-    return (
-      <div className="game">
-        <div className="game-board">
-          <Board 
-            squares={curSquare}
-            onClick={(i) => this.clickHandler(i)}
-          />
-        </div>
-        <div className="game-info">
-          <div>{status}</div>
-          <ol>{moves}</ol>
-        </div>
-      </div>
-    );
+function getStatus(isOnline) {
+  if (isOnline === null) {
+    return 'Loading...'
   }
+  return isOnline ? 'Online' : 'Offline'
+}
+
+function randomState() {
+  const idx = Math.floor(Math.random() * friendAPI.friends.length)
+  friendAPI.update(idx)
+}
+
+// use diy hook to reuse dependence
+// you can use diy hook in multiple components and they wont conflict
+function FriendListItem(props) {
+  const isOnline = useFriendStatus(props.id, friendAPI)
+  return <div>{getStatus(isOnline)}</div>
+}
+
+function Page(props) {
+  return (
+    <>
+      <Counter />
+      <hr />
+      <Comp />
+      <hr />
+      <FriendStatus id={1} />
+      <FriendListItem id={0} />
+      <button
+        onClick={() => randomState()}
+      >Random Status</button>
+    </>
+  )
 }
 
 // ========================================
 
 ReactDOM.render(
-  <Game />,
+  <Page />,
   document.getElementById('root')
-);
+)
