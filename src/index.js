@@ -77,6 +77,12 @@ function FriendStatus(props) {
     friendAPI.subscribe(props.id, statusChangeHandller)
     // return a func to clear effect
     // React will execute every time rerender this component
+    /**
+     * Why need to clean ?
+     * if props.id change, the component will rerender
+     * however, we still subscribe to former props.id !
+     * so we need to clean current effect and resubscribe
+     */
     return function clean() {
       friendAPI.unsubscribe(props.id)
     }
